@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steel 3D Catalog — Technical Specification</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #f5f5f5;
+            --surface:   #ffffff;
+            --surface2:  #f0f0f0;
+            --border:    #d0d0d0;
+            --border2:   #e8e8e8;
+            --text-pri:  #0a0a0a;
+            --text-sec:  #444444;
+            --text-mute: #888888;
+            --accent:    #0a0a0a;
+            --accent-inv:#ffffff;
+            --mark-bg:   #0a0a0a;
+            --mark-text: #ffffff;
+            --canvas-bg: #111111;
+            --grid-col:  #2a2a2a;
+            --active-border: #0a0a0a;
+            --active-bg: #f0f0f0;
+            --tag-mill:  #0a0a0a;
+            --tag-grade: #444444;
+        }
+
+        html { font-size: 14px; }
+
+        body {
+            font-family: 'IBM Plex Sans Thai', sans-serif;
+            background: var(--bg);
+            color: var(--text-pri);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─── NAVBAR ─── */
+        nav {
+            background: var(--accent);
+            color: var(--accent-inv);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #222;
+        }
+        .nav-inner {
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .nav-logo-icon {
+            width: 32px; height: 32px;
+            border: 1.5px solid rgba(255,255,255,0.3);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-logo-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.25rem;
+            letter-spacing: 0.12em;
+            color: #fff;
+        }
+        .nav-logo-sub {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: #555;
+            transition: background 0.4s;
+            flex-shrink: 0;
+        }
+        .status-dot.green  { background: #5cbf6a; }
+        .status-dot.red    { background: #e05252; }
+        .status-dot.yellow { background: #f0c040; }
+        .status-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* ─── LAYOUT ─── */
+        /* Full-height app shell: navbar + product bar + workspace */
+        body { overflow: hidden; height: 100vh; }
+
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 56px);
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 16px 20px 16px;
+            gap: 12px;
+        }
+
+        /* ─── TOP: PRODUCT LIST BAR ─── */
+        .product-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .product-bar-label {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 10px 16px;
+            border-right: 1px solid var(--border);
+            background: var(--surface2);
+            flex-shrink: 0;
+            min-width: 110px;
+        }
+        .product-bar-title {
+            font-weight: 600;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-pri);
+            white-space: nowrap;
+        }
+        .product-bar-count {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.58rem;
+            color: var(--text-mute);
+            margin-top: 2px;
+        }
+        .product-bar-scroll {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 8px 12px;
+            flex: 1;
+            scroll-behavior: smooth;
+        }
+        .product-bar-scroll::-webkit-scrollbar { height: 3px; }
+        .product-bar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .product-bar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* ─── PRODUCT CHIP ─── */
+        .product-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 7px 13px;
+            border-radius: 5px;
+            border: 1px solid var(--border2);
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            flex-shrink: 0;
+            min-width: 120px;
+            max-width: 160px;
+            background: var(--bg);
+        }
+        .product-card:hover { background: var(--surface2); border-color: var(--border); }
+        .product-card.card-active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .product-card.card-active .card-mill,
+        .product-card.card-active .card-sku,
+        .product-card.card-active .card-grade,
+        .product-card.card-active .card-thick { color: rgba(255,255,255,0.9); }
+        .product-card.card-active .card-mill { color: rgba(255,255,255,0.5); }
+
+        .card-mill {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.1em;
+            color: var(--text-mute);
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .card-sku {
+            font-weight: 600;
+            font-size: 0.68rem;
+            color: var(--text-pri);
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 3px;
+            gap: 4px;
+        }
+        .card-grade {
+            font-size: 0.58rem;
+            color: var(--text-mute);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .card-thick {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.58rem;
+            color: var(--text-sec);
+            flex-shrink: 0;
+        }
+
+        /* ─── BOTTOM WORKSPACE: 3D left + Spec right ─── */
+        .workspace {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 12px;
+            flex: 1;
+            min-height: 0; /* critical for flex children to shrink */
+        }
+
+        /* ─── 3D CANVAS ─── */
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            background: var(--canvas-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #1e1e1e;
+            cursor: grab;
+        }
+        #canvas-container:active { cursor: grabbing; }
+        #loader {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10,10,10,0.92);
+            z-index: 10;
+        }
+        .loader-inner { text-align: center; }
+        .spinner {
+            width: 32px; height: 32px;
+            border: 1.5px solid rgba(255,255,255,0.1);
+            border-top-color: rgba(255,255,255,0.7);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-text {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* Canvas corner labels */
+        .canvas-corner {
+            position: absolute;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .canvas-tl { top: 12px; left: 14px; }
+        .canvas-tr { top: 12px; right: 14px; text-align: right; }
+        .canvas-br { bottom: 12px; right: 14px; }
+        .drag-hint {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.18);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* ─── SPEC PANEL ─── */
+        .spec-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px 20px 16px;
+            overflow-y: auto;
+            height: 100%;
+        }
+        .spec-panel::-webkit-scrollbar { width: 4px; }
+        .spec-panel::-webkit-scrollbar-track { background: transparent; }
+        .spec-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        /* Product header */
+        .product-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            padding-bottom: 14px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border2);
+        }
+        .product-header-left { flex: 1; min-width: 0; }
+        .tag-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+        }
+        .tag {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.12em;
+            padding: 2px 7px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .tag-mill-badge { background: var(--mark-bg); color: var(--mark-text); }
+        .tag-grade-badge { background: transparent; color: var(--text-sec); border: 1px solid var(--border); }
+        .product-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.9rem;
+            letter-spacing: 0.06em;
+            color: var(--text-pri);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .product-sku {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-mute);
+            letter-spacing: 0.1em;
+        }
+        .cert-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px 20px;
+            text-align: center;
+            min-width: 110px;
+            flex-shrink: 0;
+        }
+        .cert-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            margin-bottom: 6px;
+        }
+        .cert-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-pri);
+        }
+
+        /* Spec sections */
+        .section-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border2);
+        }
+        .spec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+        .spec-item {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 5px;
+            padding: 8px 10px;
+            transition: border-color 0.15s;
+        }
+        .spec-item:hover { border-color: var(--border); }
+        .spec-item.highlight {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .spec-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.08em;
+            color: var(--text-mute);
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        .spec-item.highlight .spec-label { color: rgba(255,255,255,0.5); }
+        .spec-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-pri);
+            word-break: break-word;
+        }
+        .spec-item.highlight .spec-value { color: #fff; }
+
+        .section-title { margin-bottom: 8px; }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 1100px) {
+            .workspace { grid-template-columns: 340px 1fr; }
+        }
+        @media (max-width: 860px) {
+            body { overflow: auto; height: auto; }
+            .app-shell { height: auto; overflow: visible; }
+            .workspace { grid-template-columns: 1fr; }
+            #canvas-container { height: 280px; }
+            .product-name { font-size: 1.5rem; }
+            .spec-panel { height: auto; overflow: visible; }
+        }
+        @media (max-width: 520px) {
+            .spec-grid { grid-template-columns: repeat(2, 1fr); }
+            .product-header { flex-direction: column; }
+            .app-shell { padding: 10px 12px; }
+        }
+
+        /* ─── PRINT FRIENDLY ─── */
+        @media print {
+            nav, .sidebar { display: none; }
+            main { grid-template-columns: 1fr; }
+            #canvas-container { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-inner">
+        <div class="nav-logo">
+            <div class="nav-logo-icon">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="white" opacity="0.85">
+                    <path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a1 1 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z"/>
+                </svg>
+            </div>
+            <div>
+                <div class="nav-logo-title">Steel 3D Catalog</div>
+                <div class="nav-logo-sub">Technical Specification · 22 Columns</div>
+            </div>
+        </div>
+        <div class="nav-status">
+            <div id="sync-status" class="status-dot yellow"></div>
+            <span id="status-text" class="status-label">Connecting</span>
+        </div>
+    </div>
+</nav>
+
+<div class="app-shell">
+
+    <!-- ROW 1: PRODUCT LIST BAR (horizontal) -->
+    <div class="product-bar">
+        <div class="product-bar-label">
+            <div class="product-bar-title">Products</div>
+            <div id="item-count" class="product-bar-count">Loading...</div>
+        </div>
+        <div id="product-list" class="product-bar-scroll">
+            <div style="color:var(--text-mute);font-size:0.68rem;font-family:'IBM Plex Mono',monospace;white-space:nowrap;">กำลังโหลด...</div>
+        </div>
+    </div>
+
+    <!-- ROW 2: WORKSPACE — 3D left | Spec right -->
+    <div class="workspace">
+
+        <!-- LEFT: 3D Canvas -->
+        <div id="canvas-container">
+            <div class="canvas-corner canvas-tl">3D PREVIEW</div>
+            <div class="canvas-corner canvas-tr" id="canvas-type-label">—</div>
+            <div class="drag-hint">← DRAG TO ROTATE →</div>
+            <div id="loader">
+                <div class="loader-inner">
+                    <div class="spinner"></div>
+                    <div class="loader-text">Initializing Visualization</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Spec Panel -->
+        <div class="spec-panel">
+
+            <!-- Product Header -->
+            <div class="product-header">
+                <div class="product-header-left">
+                    <div class="tag-row">
+                        <span id="label-mill" class="tag tag-mill-badge">—</span>
+                        <span id="label-grade" class="tag tag-grade-badge">—</span>
+                    </div>
+                    <div id="product-title" class="product-name">SELECT PRODUCT</div>
+                    <div id="product-sku-detail" class="product-sku">SKU: —</div>
+                </div>
+                <div class="cert-box">
+                    <div class="cert-label">Certificate</div>
+                    <div id="v-cert" class="cert-value">—</div>
+                </div>
+            </div>
+
+            <!-- Section 1 -->
+            <div class="section-title">Physical Dimensions &amp; Tolerances</div>
+            <div class="spec-grid">
+                <div class="spec-item"><p class="spec-label">Thickness</p><p id="v-thick" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Tol. Thickness</p><p id="v-thick-tol" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Thickness Aiming</p><p id="v-aim" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Tol. Aiming</p><p id="v-aim-tol" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Width</p><p id="v-width" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">OD Spec</p><p id="v-od-spec" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">OD Set up</p><p id="v-od-setup" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Tol. OD Set up</p><p id="v-od-tol" class="spec-value">—</p></div>
+            </div>
+
+            <!-- Section 2 -->
+            <div class="section-title">Weights &amp; Standards</div>
+            <div class="spec-grid">
+                <div class="spec-item"><p class="spec-label">Weight TIS STD</p><p id="v-w-tis" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Tol. Weight TIS</p><p id="v-w-tis-tol" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Weight TMT STD</p><p id="v-w-tmt" class="spec-value">—</p></div>
+            </div>
+
+            <!-- Section 3 -->
+            <div class="section-title">Finishing, Marking &amp; Packaging</div>
+            <div class="spec-grid">
+                <div class="spec-item"><p class="spec-label">Marking Format</p><p id="v-mark" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Packing Type</p><p id="v-pack" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Strapping Pattern</p><p id="v-strap" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Sticker Labeling</p><p id="v-sticker" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Pcs / Pack</p><p id="v-pcs" class="spec-value">—</p></div>
+                <div class="spec-item"><p class="spec-label">Kg / Bundle</p><p id="v-kg" class="spec-value">—</p></div>
+                <div class="spec-item highlight"><p class="spec-label">Loading Method</p><p id="v-loading" class="spec-value">—</p></div>
+            </div>
+
+        </div><!-- end .spec-panel -->
+
+    </div><!-- end .workspace -->
+
+</div><!-- end .app-shell -->
+
+<script>
+(function () {
+    'use strict';
+
+    // ─── CONFIG ───
+    var SHEET_ID   = '18TwmY8iPXkztTpd50p50hiWOWBCRnQRE2r2212JYaOU';
+    var SHEET_NAME = 'D';
+    var JSONP_TIMEOUT_MS = 12000;
+
+    // ─── STATE ───
+    var steelProducts = [];
+    var scene, camera, renderer, currentModel;
+    var isDragging = false, prevX = 0, prevY = 0;
+    var loadTimeout = null;
+
+    var container = document.getElementById('canvas-container');
+
+    // ─── UTILS ───
+    function fmt(v) {
+        if (v === null || v === undefined || v === '' || v === '-') return '—';
+        return String(v);
+    }
+
+    function updateEl(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = fmt(val);
+    }
+
+    function updateStatus(text, state) {
+        var dot   = document.getElementById('sync-status');
+        var label = document.getElementById('status-text');
+        dot.className = 'status-dot ' + state;
+        label.textContent = text;
+    }
+
+    // ─── SHEET DATA (JSONP) ───
+    window.handleGoogleSheetResponse = function (response) {
+        clearTimeout(loadTimeout);
+        try {
+            if (!response || !response.table) throw new Error('Invalid response structure');
+            var rows = response.table.rows;
+            if (!rows || rows.length === 0) throw new Error('No rows returned');
+
+            steelProducts = rows.map(function(row, index) {
+                function getV(i) {
+                    if (!row.c || !row.c[i]) return null;
+                    var cell = row.c[i];
+                    return (cell && cell.v !== null && cell.v !== undefined) ? cell.v : null;
+                }
+                return {
+                    id: index,
+                    sku:      getV(0),  mill:    getV(1),  thick:   getV(2),
+                    thickTol: getV(3),  aim:     getV(4),  aimTol:  getV(5),
+                    width:    getV(6),  grade:   getV(7),  cert:    getV(8),
+                    odSpec:   getV(9),  odSetup: getV(10), odTol:   getV(11),
+                    wTis:     getV(12), wTisTol: getV(13), wTmt:    getV(14),
+                    marking:  getV(15), pack:    getV(16), strap:   getV(17),
+                    sticker:  getV(18), pcs:     getV(19), kg:      getV(20),
+                    loading:  getV(21),
+                    type: determineType(String(getV(0) || ''))
+                };
+            }).filter(function(p) { return p.sku && p.sku !== 'SKU'; });
+
+            if (steelProducts.length === 0) throw new Error('All rows filtered out (check header row)');
+
+            renderList();
+            selectProduct(steelProducts[0].id);
+            updateStatus('Connected', 'green');
+            document.getElementById('item-count').textContent = steelProducts.length + ' รายการ';
+            document.getElementById('loader').style.display = 'none';
+
+        } catch (err) {
+            console.error('Sheet parse error:', err);
+            showError('ข้อมูลไม่ถูกต้อง หรือชีตว่างเปล่า<br><small>' + err.message + '</small>');
+        }
+    };
+
+    function loadSheetData() {
+        updateStatus('Connecting...', 'yellow');
+
+        var old = document.getElementById('jsonp-fetcher');
+        if (old) old.remove();
+
+        loadTimeout = setTimeout(function() {
+            showError('Request Timeout: เซิร์ฟเวอร์ไม่ตอบสนองใน 15 วินาที<br><small>ตรวจสอบว่า Google Sheet ตั้งค่าเป็น Public</small>');
+        }, JSONP_TIMEOUT_MS);
+
+        var script = document.createElement('script');
+        script.id  = 'jsonp-fetcher';
+        script.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+                     '/gviz/tq?tqx=responseHandler:handleGoogleSheetResponse&sheet=' +
+                     encodeURIComponent(SHEET_NAME) + '&cb=' + Date.now();
+        script.onerror = function() {
+            clearTimeout(loadTimeout);
+            showError('Network Error: ไม่สามารถเข้าถึง Google API ได้');
+        };
+        document.head.appendChild(script);
+    }
+
+    function showError(msg) {
+        var loader = document.getElementById('loader');
+        loader.style.display = 'flex';
+        loader.innerHTML = '<div style="text-align:center;padding:32px;max-width:320px;">' +
+            '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" style="margin:0 auto 16px;display:block;">' +
+            '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="rgba(255,255,255,0.5)"/>' +
+            '</svg>' +
+            '<p style="color:#fff;font-weight:600;font-size:0.8rem;margin-bottom:8px;">ไม่สามารถโหลดข้อมูลได้</p>' +
+            '<p style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-bottom:20px;line-height:1.6;">' + msg + '</p>' +
+            '<button onclick="location.reload()" style="background:#fff;color:#000;border:none;padding:8px 20px;border-radius:4px;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">Retry</button>' +
+            '<p style="margin-top:14px;font-size:0.62rem;color:rgba(255,255,255,0.2);line-height:1.5;">ตรวจสอบว่า Google Sheet ตั้งค่าเป็น Public แล้ว</p>' +
+            '</div>';
+        updateStatus('Failed', 'red');
+    }
+
+    // ─── PRODUCT TYPE ───
+    function determineType(sku) {
+        var s = sku.toLowerCase();
+        if (s.includes('pipe') || s.includes('กลม'))           return 'pipe';
+        if (s.includes('angle') || s.includes('ฉาก'))          return 'angle';
+        if (s.includes('h-beam') || s.includes('hbeam'))        return 'hbeam';
+        return 'box';
+    }
+
+    // ─── THREE.JS ───
+    function init3D() {
+        if (!container || typeof THREE === 'undefined') return;
+
+        scene    = new THREE.Scene();
+        scene.background = new THREE.Color(0x111315);
+        scene.fog = new THREE.FogExp2(0x111315, 0.045);
+
+        camera   = new THREE.PerspectiveCamera(52, container.clientWidth / container.clientHeight, 0.1, 200);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        container.appendChild(renderer.domElement);
+
+        // ── 3-POINT LIGHTING ──────────────────────────────────────
+        // 1. Ambient warm (simulates environment bounce)
+        var ambLight = new THREE.AmbientLight(0xffe8c8, 0.28);
+        scene.add(ambLight);
+
+        // 2. Overhead key light — casts hard shadow top-down
+        var keyLight = new THREE.DirectionalLight(0xfff5e0, 2.4);
+        keyLight.position.set(0, 14, 3);
+        keyLight.castShadow = true;
+        keyLight.shadow.camera.near = 0.5;
+        keyLight.shadow.camera.far  = 50;
+        keyLight.shadow.camera.left   = -10;
+        keyLight.shadow.camera.right  =  10;
+        keyLight.shadow.camera.top    =  10;
+        keyLight.shadow.camera.bottom = -10;
+        keyLight.shadow.mapSize.set(2048, 2048);
+        keyLight.shadow.bias = -0.001;
+        scene.add(keyLight);
+
+        // 3. Front fill — soften harsh shadows facing camera
+        var fillLight = new THREE.DirectionalLight(0xb0d4ff, 0.6);
+        fillLight.position.set(0, 2, 12);
+        scene.add(fillLight);
+
+        // 4. Rim / edge backlight — separates steel from dark bg
+        var rimLight = new THREE.DirectionalLight(0xff9955, 0.55);
+        rimLight.position.set(-8, 3, -10);
+        scene.add(rimLight);
+
+        // Camera: rear/end view — looking straight into cut-face of pipes
+        camera.position.set(0, 2.2, 10);
+        camera.lookAt(0, 0, 0);
+
+        // Subtle floor grid
+        var grid = new THREE.GridHelper(20, 30, 0x242424, 0x1a1a1a);
+        grid.position.y = -3.2;
+        grid.receiveShadow = true;
+        scene.add(grid);
+
+        animate();
+    }
+
+    // ── MATERIAL FACTORY ──────────────────────────────────────────
+    function makeSteelMat(colorHex, metalness, roughness) {
+        return new THREE.MeshStandardMaterial({
+            color: colorHex !== undefined ? colorHex : 0x1e2025,
+            metalness: metalness !== undefined ? metalness : 0.92,
+            roughness: roughness !== undefined ? roughness : 0.22
+        });
+    }
+
+    // ── HEX CLOSE-PACK POSITIONS ─────────────────────────────────
+    // Returns array of {x, y} for N pipes in honeycomb layout
+    function hexPackPositions(rows, cols, r) {
+        var positions = [];
+        var dx = r * 2;
+        var dy = r * Math.sqrt(3);
+        var startX = -(cols - 1) * dx / 2;
+        var startY = -(rows - 1) * dy / 2;
+        for (var row = 0; row < rows; row++) {
+            var offset = (row % 2 === 0) ? 0 : r;
+            var colCount = (row % 2 === 0) ? cols : cols - 1;
+            for (var col = 0; col < colCount; col++) {
+                positions.push({
+                    x: startX + offset + col * dx,
+                    y: startY + row * dy
+                });
+            }
+        }
+        return positions;
+    }
+
+    function createModel(type) {
+        if (currentModel) {
+            scene.remove(currentModel);
+            currentModel.traverse(function(obj) {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(function(m) { m.dispose(); });
+                    } else {
+                        obj.material.dispose();
+                    }
+                }
+            });
+            currentModel = null;
+        }
+
+        var group = new THREE.Group();
+
+        // Main steel color: near-black 0x1e2025
+        // Partial pipes (oxidized/cut-end exposure): red-brown 0x8b2c10
+        var matSteel    = makeSteelMat(0x1e2025, 0.92, 0.22);
+        var matCutFace  = makeSteelMat(0x8b2c10, 0.65, 0.55); // red-brown cut-face
+        var matInner    = makeSteelMat(0x0d0f11, 0.98, 0.45); // dark hollow bore
+        var matSteel2   = makeSteelMat(0x252830, 0.90, 0.28); // slightly lighter variant
+
+        if (type === 'pipe') {
+            // ── HEXAGONAL CLOSE-PACKING (honeycomb) ──────────────
+            // Realistic steel pipe bundle viewed from rear (end-face)
+            var R      = 0.60;   // outer radius
+            var wall   = 0.072;  // wall thickness
+            var iR     = R - wall;
+            var LENGTH = 7.5;
+            var segs   = 48;
+
+            var positions = hexPackPositions(4, 5, R + 0.03);
+
+            positions.forEach(function(pos, idx) {
+                var pipeGroup = new THREE.Group();
+
+                // Outer shell (cylinder body) — viewed along Z-axis
+                var outerGeo = new THREE.CylinderGeometry(R, R, LENGTH, segs, 1, true);
+                var outerMesh = new THREE.Mesh(outerGeo, (idx % 7 === 0) ? matSteel2 : matSteel);
+                outerMesh.rotation.x = Math.PI / 2;
+                outerMesh.castShadow = true;
+                outerMesh.receiveShadow = true;
+                pipeGroup.add(outerMesh);
+
+                // Inner bore
+                var innerGeo = new THREE.CylinderGeometry(iR, iR, LENGTH + 0.05, segs, 1, true);
+                var innerMesh = new THREE.Mesh(innerGeo, matInner);
+                innerMesh.rotation.x = Math.PI / 2;
+                pipeGroup.add(innerMesh);
+
+                // Front cut-face ring (facing camera — red-brown)
+                var frontRing = new THREE.Mesh(new THREE.RingGeometry(iR, R, segs), matCutFace);
+                frontRing.position.z = LENGTH / 2;
+                pipeGroup.add(frontRing);
+
+                // Back end ring (darker)
+                var backRing = new THREE.Mesh(new THREE.RingGeometry(iR, R, segs), matSteel);
+                backRing.rotation.x = Math.PI;
+                backRing.position.z = -LENGTH / 2;
+                pipeGroup.add(backRing);
+
+                pipeGroup.position.set(pos.x, pos.y, 0);
+                group.add(pipeGroup);
+            });
+
+            // Shift bundle to center vertically
+            group.position.set(0, -0.4, 0);
+
+        } else if (type === 'angle') {
+            var shape = new THREE.Shape();
+            shape.moveTo(0, 0); shape.lineTo(1.2, 0); shape.lineTo(1.2, 0.1);
+            shape.lineTo(0.1, 0.1); shape.lineTo(0.1, 1.2); shape.lineTo(0, 1.2);
+            shape.closePath();
+            var extOpts = { depth: 6.5, bevelEnabled: false };
+            var geo = new THREE.ExtrudeGeometry(shape, extOpts);
+            var mesh = new THREE.Mesh(geo, matSteel);
+            mesh.castShadow = true;
+            mesh.position.set(-0.6, -0.6, -3.25);
+            group.add(mesh);
+
+        } else if (type === 'hbeam') {
+            var web = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 6.5), matSteel);
+            var f1  = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 6.5), matSteel);
+            var f2  = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 6.5), matSteel);
+            web.castShadow = true; f1.castShadow = true; f2.castShadow = true;
+            f1.position.y = 0.65; f2.position.y = -0.65;
+            group.add(web, f1, f2);
+
+        } else {
+            // Square / Rectangular Tube — also show end-face
+            var outerW = 1.0, outerH = 1.0, length = 6.5, wall2 = 0.09;
+            var outerGeo2 = new THREE.BoxGeometry(outerW, outerH, length);
+            var innerGeo2 = new THREE.BoxGeometry(outerW - wall2*2, outerH - wall2*2, length + 0.1);
+
+            var outerMesh2 = new THREE.Mesh(outerGeo2, matSteel);
+            var innerMesh2 = new THREE.Mesh(innerGeo2, matInner);
+            outerMesh2.castShadow = true;
+
+            // Front face plane to show cut
+            var frontFace = new THREE.Mesh(
+                new THREE.PlaneGeometry(outerW, outerH),
+                matCutFace
+            );
+            frontFace.position.z = length / 2;
+
+            var innerCut = new THREE.Mesh(
+                new THREE.PlaneGeometry(outerW - wall2*2, outerH - wall2*2),
+                matInner
+            );
+            innerCut.position.z = length / 2 + 0.001;
+
+            group.add(outerMesh2, innerMesh2, frontFace, innerCut);
+        }
+
+        // Label
+        var typeLabels = { pipe: 'ROUND PIPE · HEX PACK', angle: 'ANGLE IRON', hbeam: 'H-BEAM', box: 'SQUARE TUBE' };
+        document.getElementById('canvas-type-label').textContent = typeLabels[type] || type.toUpperCase();
+
+        currentModel = group;
+        // Slight initial tilt — shows end-face and some barrel depth
+        currentModel.rotation.y = 0.38;
+        currentModel.rotation.x = -0.12;
+        scene.add(currentModel);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        // Gentle slow rotation — predominantly Y so cut-face stays visible
+        if (currentModel && !isDragging) {
+            currentModel.rotation.y += 0.0025;
+        }
+        if (renderer && scene && camera) renderer.render(scene, camera);
+    }
+
+    // ─── DRAG TO ROTATE (Mouse + Touch) ───
+    container.addEventListener('mousedown',  function(e) { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+    window.addEventListener('mouseup',       function() { isDragging = false; });
+    window.addEventListener('mousemove',     function(e) {
+        if (!isDragging || !currentModel) return;
+        currentModel.rotation.y += (e.clientX - prevX) * 0.008;
+        currentModel.rotation.x += (e.clientY - prevY) * 0.004;
+        currentModel.rotation.x  = Math.max(-0.6, Math.min(0.6, currentModel.rotation.x));
+        prevX = e.clientX; prevY = e.clientY;
+    });
+
+    container.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 1) { isDragging = true; prevX = e.touches[0].clientX; prevY = e.touches[0].clientY; }
+    }, { passive: true });
+    window.addEventListener('touchend',  function() { isDragging = false; });
+    window.addEventListener('touchmove', function(e) {
+        if (!isDragging || !currentModel || e.touches.length !== 1) return;
+        currentModel.rotation.y += (e.touches[0].clientX - prevX) * 0.008;
+        prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
+    }, { passive: true });
+
+    window.addEventListener('resize', function() {
+        if (!camera || !renderer || !container) return;
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // ─── SELECT PRODUCT ───
+    function selectProduct(id) {
+        var p = null;
+        for (var i = 0; i < steelProducts.length; i++) {
+            if (steelProducts[i].id === id) { p = steelProducts[i]; break; }
+        }
+        if (!p) return;
+
+        document.getElementById('product-title').textContent = p.sku || 'N/A';
+        document.getElementById('product-sku-detail').textContent = 'SKU: ' + fmt(p.sku);
+        document.getElementById('label-mill').textContent  = fmt(p.mill);
+        document.getElementById('label-grade').textContent = fmt(p.grade);
+
+        updateEl('v-cert',     p.cert);
+        updateEl('v-thick',    p.thick);
+        updateEl('v-thick-tol',p.thickTol);
+        updateEl('v-aim',      p.aim);
+        updateEl('v-aim-tol',  p.aimTol);
+        updateEl('v-width',    p.width);
+        updateEl('v-od-spec',  p.odSpec);
+        updateEl('v-od-setup', p.odSetup);
+        updateEl('v-od-tol',   p.odTol);
+        updateEl('v-w-tis',    p.wTis);
+        updateEl('v-w-tis-tol',p.wTisTol);
+        updateEl('v-w-tmt',    p.wTmt);
+        updateEl('v-mark',     p.marking);
+        updateEl('v-pack',     p.pack);
+        updateEl('v-strap',    p.strap);
+        updateEl('v-sticker',  p.sticker);
+        updateEl('v-pcs',      p.pcs);
+        updateEl('v-kg',       p.kg);
+        updateEl('v-loading',  p.loading);
+
+        createModel(p.type);
+
+        document.querySelectorAll('.product-card').forEach(function(c) { c.classList.remove('card-active'); });
+        var activeCard = document.getElementById('card-' + id);
+        if (activeCard) {
+            activeCard.classList.add('card-active');
+            activeCard.scrollIntoView({ inline: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    // ─── RENDER LIST ───
+    function renderList() {
+        var list = document.getElementById('product-list');
+        list.innerHTML = '';
+        var frag = document.createDocumentFragment();
+        steelProducts.forEach(function(p) {
+            var card = document.createElement('div');
+            card.id        = 'card-' + p.id;
+            card.className = 'product-card';
+            card.onclick   = (function(pid) { return function() { selectProduct(pid); }; })(p.id);
+            card.innerHTML = '<div class="card-mill">' + fmt(p.mill) + '</div>' +
+                '<div class="card-sku">' + fmt(p.sku) + '</div>' +
+                '<div class="card-meta">' +
+                '<span class="card-grade">' + fmt(p.grade) + '</span>' +
+                '<span class="card-thick">' + fmt(p.thick) + '</span>' +
+                '</div>';
+            frag.appendChild(card);
+        });
+        list.appendChild(frag);
+    }
+
+    // ─── INIT ───
+    document.addEventListener('DOMContentLoaded', function() {
+        init3D();
+        loadSheetData();
+    });
+
+})();
+</script>
+</body>
+</html>
